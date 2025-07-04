@@ -1,14 +1,11 @@
 
 import os
+from flask import Flask, request
+import telegram
+from telegram.ext import Dispatcher, MessageHandler, filters
+from openai import OpenAI
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
-from openai import OpenAI
-from rapidfuzz import fuzz
-from flask import Flask, request
-
-app = Flask(__name__)
 
 # Инициализация OpenAI
 client_gpt = OpenAI(api_key=os.environ["MyKey2"])
@@ -17,28 +14,28 @@ client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
 client_gs = gspread.authorize(creds)
-
 SPREADSHEET_ID = os.environ["sheets_id"]
 sheet = client_gs.open_by_key(SPREADSHEET_ID).sheet1
 records = sheet.get_all_records()
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Инициализация Flask
+app = Flask(__name__)
+
+# Инициализация Telegram
+bot = telegram.Bot(token=os.environ["Telegram_Bot_Token"])
+dispatcher = Dispatcher(bot, None, workers=0)
+
+# Обработчик сообщений
+def handle_message(update, context):
     user_message = update.message.text.strip()
-    print(f"\nПОЛУЧЕН ВОПРОС: {user_message}")
+    print(f"ПОЛУЧЕН ВОПРОС: {user_message}")
 
-    max_score = 0
-    best_answer = None
-
+    # Проверяем точное совпадение
     for record in records:
-        score = fuzz.token_set_ratio(user_message.lower(), record["question"].lower())
-        if score > max_score:
-            max_score = score
-            best_answer = record["answer"]
-
-    if max_score >= 70:
-        print(f"✅ Найдено похожее совпадение в базе, score={max_score}")
-        await update.message.reply_text(best_answer)
-        return
+        if record["question"].strip().lower() == user_message.strip().lower():
+            print("✅ Найдено точное совпадение в базе")
+            update.message.reply_text(record["answer"])
+            return
 
     prompt = f"""
 Ты — помощник по пожарной безопасности в РФ. Отвечай развернуто (3-4 предложения), с ссылками на применимые ФЗ, ГОСТ, СНиП, ППБ, если это уместно. Пиши понятно, деловым языком.
@@ -47,7 +44,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Ответ:
 """
-
     print("🔄 Отправляем запрос в GPT для генерации ответа...")
 
     response = client_gpt.chat.completions.create(
@@ -57,27 +53,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         max_tokens=300,
         temperature=0.3
     )
-
     gpt_answer = response.choices[0].message.content.strip()
     print(f"✅ ОТВЕТ GPT: {gpt_answer[:300]}...")
+    update.message.reply_text(gpt_answer)
 
-    await update.message.reply_text(gpt_answer)
+dispatcher.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-async def main():
-    TELEGRAM_BOT_TOKEN = os.environ["Telegram_Bot_Token"]
-    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+# Flask route для webhook
+@app.route("/", methods=["POST"])
+def webhook():
+    update = telegram.Update.de_json(request.get_json(force=True), bot)
+    dispatcher.process_update(update)
+    return "ok"
 
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-
-    print("🚀 Бот запущен и готов к работе.")
-    await application.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 8080)),
-        webhook_url=os.environ["WEBHOOK_URL"]
-    )
-
+# Запуск сервера
 if __name__ == "__main__":
-    import asyncio
-    import nest_asyncio
-    nest_asyncio.apply()
-    asyncio.run(main())
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
