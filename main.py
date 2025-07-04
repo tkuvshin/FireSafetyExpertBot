@@ -12,7 +12,12 @@ client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 
 # Настройка Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+import json
+
+creds_json = os.environ["GOOGLE_CREDS_JSON"]
+creds_dict = json.loads(creds_json)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+
 client_gs = gspread.authorize(creds)
 SPREADSHEET_ID = os.environ["sheets_id"]
 sheet = client_gs.open_by_key(SPREADSHEET_ID).sheet1
