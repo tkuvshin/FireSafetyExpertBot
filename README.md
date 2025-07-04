@@ -10,4 +10,4 @@ Telegram бот ИИ консультант по пожарной безопас
 - WEBHOOK_URL (URL Railway)
 
 ## Запуск:
-- Автозапуск через Railway с webhook.
+- Автозапуск через Northflank с webhook.
