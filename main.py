@@ -1,16 +1,18 @@
 import os
 import json
+import asyncio
 from flask import Flask, request
 import telegram
-from telegram.ext import Dispatcher, MessageHandler, filters
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from openai import OpenAI
 import gspread
 from google.oauth2.service_account import Credentials
 
-# OpenAI
+# Инициализация OpenAI
 client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 
-# Google Sheets
+# Настройка Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_json = os.environ["GOOGLE_CREDS_JSON"]
 creds_dict = json.loads(creds_json)
@@ -18,24 +20,25 @@ credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
 client_gs = gspread.authorize(credentials)
 SPREADSHEET_ID = os.environ["sheets_id"]
 sheet = client_gs.open_by_key(SPREADSHEET_ID).sheet1
-records = sheet.get_all_records()
 
 # Flask
 app = Flask(__name__)
 
-# Telegram
-bot = telegram.Bot(token=os.environ["Telegram_Bot_Token"])
-dispatcher = Dispatcher(bot, None, workers=0)
+# Telegram Application
+bot_token = os.environ["Telegram_Bot_Token"]
+application = ApplicationBuilder().token(bot_token).build()
 
-# Обработка сообщений
-def handle_message(update, context):
+# Асинхронный обработчик сообщений
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.strip()
     print(f"ПОЛУЧЕН ВОПРОС: {user_message}")
+
+    records = sheet.get_all_records()
 
     for record in records:
         if record["question"].strip().lower() == user_message.lower():
             print("✅ Найдено точное совпадение в базе")
-            update.message.reply_text(record["answer"])
+            await update.message.reply_text(record["answer"])
             return
 
     prompt = f"""
@@ -57,18 +60,25 @@ def handle_message(update, context):
     )
     gpt_answer = response.choices[0].message.content.strip()
     print(f"✅ ОТВЕТ GPT: {gpt_answer[:200]}...")
-    update.message.reply_text(gpt_answer)
+    await update.message.reply_text(gpt_answer)
 
-dispatcher.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+# Регистрируем обработчик
+application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-# Webhook
+# Webhook для Telegram через Flask
 @app.route("/", methods=["POST"])
-def webhook():
-    update = telegram.Update.de_json(request.get_json(force=True), bot)
-    dispatcher.process_update(update)
+async def webhook():
+    update = telegram.Update.de_json(request.get_json(force=True), application.bot)
+    await application.process_update(update)
     return "ok"
 
-# Запуск сервера
+# Запуск бота и Flask
 if __name__ == "__main__":
+    import nest_asyncio
+    nest_asyncio.apply()
+    loop = asyncio.get_event_loop()
+    loop.create_task(application.initialize())
+    loop.create_task(application.start())
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
