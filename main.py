@@ -4,20 +4,24 @@ import telegram
 from telegram.ext import Dispatcher, MessageHandler, filters
 from openai import OpenAI
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import json
+from google.oauth2.service_account import Credentials
 
 # Инициализация OpenAI
 client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 
 # Настройка Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-import json
 
+# Читаем JSON ключ из переменной окружения
 creds_json = os.environ["GOOGLE_CREDS_JSON"]
 creds_dict = json.loads(creds_json)
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 
-client_gs = gspread.authorize(creds)
+# Используем google.oauth2 вместо устаревшей oauth2client
+credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
+
+# Авторизация gspread через новые Credentials
+client_gs = gspread.authorize(credentials)
 SPREADSHEET_ID = os.environ["sheets_id"]
 sheet = client_gs.open_by_key(SPREADSHEET_ID).sheet1
 records = sheet.get_all_records()
@@ -52,8 +56,10 @@ def handle_message(update, context):
 
     response = client_gpt.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "system", "content": "Ты профессиональный консультант по пожарной безопасности."},
-                  {"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": "Ты профессиональный консультант по пожарной безопасности."},
+            {"role": "user", "content": prompt}
+        ],
         max_tokens=300,
         temperature=0.3
     )
@@ -69,7 +75,6 @@ def webhook():
     update = telegram.Update.de_json(request.get_json(force=True), bot)
     dispatcher.process_update(update)
     return "ok"
-    
 
 # Запуск сервера
 if __name__ == "__main__":
