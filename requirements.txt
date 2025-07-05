@@ -1,9 +1,8 @@
 
 python-telegram-bot==20.3
-gspread
-oauth2client
+gspread==5.12.0
 openai
 rapidfuzz
 flask
 nest_asyncio
-
+google-auth
