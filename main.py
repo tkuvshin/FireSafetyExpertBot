@@ -1,46 +1,39 @@
 import os
+import json
 from flask import Flask, request
 import telegram
 from telegram.ext import Dispatcher, MessageHandler, filters
 from openai import OpenAI
 import gspread
-import json
 from google.oauth2.service_account import Credentials
 
-# Инициализация OpenAI
+# OpenAI
 client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 
-# Настройка Google Sheets
+# Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
-# Читаем JSON ключ из переменной окружения
 creds_json = os.environ["GOOGLE_CREDS_JSON"]
 creds_dict = json.loads(creds_json)
-
-# Используем google.oauth2 вместо устаревшей oauth2client
 credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
-
-# Авторизация gspread через новые Credentials
 client_gs = gspread.authorize(credentials)
 SPREADSHEET_ID = os.environ["sheets_id"]
 sheet = client_gs.open_by_key(SPREADSHEET_ID).sheet1
 records = sheet.get_all_records()
 
-# Инициализация Flask
+# Flask
 app = Flask(__name__)
 
-# Инициализация Telegram
+# Telegram
 bot = telegram.Bot(token=os.environ["Telegram_Bot_Token"])
 dispatcher = Dispatcher(bot, None, workers=0)
 
-# Обработчик сообщений
+# Обработка сообщений
 def handle_message(update, context):
     user_message = update.message.text.strip()
     print(f"ПОЛУЧЕН ВОПРОС: {user_message}")
 
-    # Проверяем точное совпадение
     for record in records:
-        if record["question"].strip().lower() == user_message.strip().lower():
+        if record["question"].strip().lower() == user_message.lower():
             print("✅ Найдено точное совпадение в базе")
             update.message.reply_text(record["answer"])
             return
@@ -52,8 +45,7 @@ def handle_message(update, context):
 
 Ответ:
 """
-    print("🔄 Отправляем запрос в GPT для генерации ответа...")
-
+    print("🔄 Отправляем запрос в GPT...")
     response = client_gpt.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -64,12 +56,12 @@ def handle_message(update, context):
         temperature=0.3
     )
     gpt_answer = response.choices[0].message.content.strip()
-    print(f"✅ ОТВЕТ GPT: {gpt_answer[:300]}...")
+    print(f"✅ ОТВЕТ GPT: {gpt_answer[:200]}...")
     update.message.reply_text(gpt_answer)
 
 dispatcher.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-# Flask route для webhook
+# Webhook
 @app.route("/", methods=["POST"])
 def webhook():
     update = telegram.Update.de_json(request.get_json(force=True), bot)
