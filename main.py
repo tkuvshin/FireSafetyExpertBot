@@ -70,6 +70,7 @@ def webhook():
     update = telegram.Update.de_json(request.get_json(force=True), bot)
     dispatcher.process_update(update)
     return "ok"
+    
 
 # Запуск сервера
 if __name__ == "__main__":
