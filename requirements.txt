@@ -1,8 +1,7 @@
 
-python-telegram-bot==13.15
+python-telegram-bot==20.8
 gspread==5.12.0
 openai
-rapidfuzz
 flask[async]
 nest_asyncio
 google-auth
