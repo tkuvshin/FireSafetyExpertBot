@@ -1,10 +1,7 @@
-# fly.toml
-app = "firesafetyexpertbot-kfrzzw"  # ← замените на имя вашего приложения в fly.io
-
-# [builder]
+[build]
   builder = "paketobuildpacks/builder:base"
-  buildpacks = ["gcr.io/paketo-buildpacks/python"]  # ← это ключевая строка!
+  buildpacks = ["gcr.io/paketo-buildpacks/python"]
 
 [http_service]
-  internal_port = 8080  # ← порт, который слушает ваше приложение (например, Flask)
+  internal_port = 8080
   force_https = true
