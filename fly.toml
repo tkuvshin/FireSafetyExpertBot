@@ -1,7 +1,7 @@
 # fly.toml
 app = "firesafetyexpertbot-kfrzzw"  # ← замените на имя вашего приложения в fly.io
 
-[build]
+# [builder]
   builder = "paketobuildpacks/builder:base"
   buildpacks = ["gcr.io/paketo-buildpacks/python"]  # ← это ключевая строка!
 
