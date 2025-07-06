@@ -10,3 +10,4 @@ COPY . .
 ENV PORT=5000
 
 CMD ["python", "main.py"]
+
