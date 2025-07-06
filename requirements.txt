@@ -3,6 +3,6 @@ python-telegram-bot==20.3
 gspread==5.12.0
 openai
 rapidfuzz
-flask
+flask[async]
 nest_asyncio
 google-auth
