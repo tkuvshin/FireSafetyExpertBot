@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV PORT=5000
+ENV PORT=8080
 
 CMD ["python", "main.py"]
 
