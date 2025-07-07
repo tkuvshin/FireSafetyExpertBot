@@ -11,6 +11,11 @@ from google.oauth2.service_account import Credentials
 
 # Инициализация OpenAI
 client_gpt = OpenAI(api_key=os.environ["MyKey2"])
+# Лучше использовать .get() с проверкой
+api_key = os.environ.get("MyKey2")
+if not api_key:
+    raise ValueError("API-ключ OpenAI не найден в переменных окружения!")
+client_gpt = OpenAI(api_key=api_key)
 
 # Настройка Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
