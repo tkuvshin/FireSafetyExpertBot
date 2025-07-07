@@ -10,7 +10,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # Инициализация OpenAI
-
+# client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 # Лучше использовать .get() с проверкой
 api_key = os.environ.get("MyKey2")
 if not api_key:
