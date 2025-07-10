@@ -4,6 +4,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from openai import OpenAI
+from fastapi import FastAPI
+import uvicorn
 
 # Инициализация OpenAI
 client_gpt = OpenAI(api_key=os.environ["MyKey2"])
@@ -89,10 +91,17 @@ async def main():
     print("🚀 Бот запущен и готов к работе.")
     await application.run_polling()
 
-if __name__ == "__main__":
-    import asyncio
-    import nest_asyncio
+app = FastAPI()
 
-    nest_asyncio.apply()
-    asyncio.run(main())
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8080)),
+        reload=True
+    )
 
