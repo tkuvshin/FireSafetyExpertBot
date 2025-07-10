@@ -4,7 +4,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from openai import OpenAI
-from fastapi import FastAPI
 import uvicorn
 
 # Инициализация OpenAI
@@ -90,7 +89,8 @@ async def main():
 
     print("🚀 Бот запущен и готов к работе.")
     await application.run_polling()
-
+    
+from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
