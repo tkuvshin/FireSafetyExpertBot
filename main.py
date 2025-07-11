@@ -60,7 +60,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
 # --- 3. Flask-приложение для обхода ошибки порта ---
-flask_app = Flask(__name__)
+app = Flask(__name__)
 
 @flask_app.route("/")
 def home():
