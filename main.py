@@ -7,15 +7,23 @@ from openai import OpenAI
 from flask import Flask
 import threading
 import asyncio
+import json
+
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# Получаем содержимое JSON из переменной окружения
+creds_json_str = os.environ['GCP_CREDENTIALS_JSON']
+# Превращаем текстовую строку обратно в JSON-объект
+creds_dict = json.loads(creds_json_str )
+# Авторизуемся, используя словарь, а не файл
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+client_gs = gspread.authorize(creds)
+
 
 # --- 1. Инициализация и настройки (без изменений) ---
 # OpenAI
 client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 
 # Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope )
-client_gs = gspread.authorize(creds)
 
 SPREADSHEET_ID = os.environ["sheets_id"]
 sheet = client_gs.open_by_key(SPREADSHEET_ID).sheet1
