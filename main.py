@@ -110,17 +110,20 @@ def run_bot():
     """
     Эта функция запускается в отдельном потоке.
     Она создает новый цикл событий asyncio для этого потока
-    и запускает в нем бота.
+    и запускает в нем бота с отключенной обработкой сигналов.
     """
     try:
         logging.info("Поток для бота: создаю новый цикл событий asyncio...")
-        # 1. Создаем новый "рабочий стол" (event loop) для этого потока
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-        logging.info("Поток для бота: запускаю polling...")
-        # 2. Запускаем бота в этом, только что созданном, цикле
-        application.run_polling()
+        logging.info("Поток для бота: запускаю polling с отключенными сигналами...")
+        # 1. Запускаем бота, сказав ему не слушать системные сигналы.
+        # Это решает ошибку "set_wakeup_fd only works in main thread".
+        application.run_polling(stop_signals=None)
+
+    except Exception as e:
+        logging.critical(f"!!! БОТ УПАЛ С ОШИБКОЙ: {e}", exc_info=True)
 
     except Exception as e:
         logging.critical(f"!!! БОТ УПАЛ С ОШИБКОЙ: {e}", exc_info=True)
