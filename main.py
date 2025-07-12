@@ -107,9 +107,21 @@ def home():
     return "Сервер работает. Бот запущен в фоновом режиме."
 
 def run_bot():
+    """
+    Эта функция запускается в отдельном потоке.
+    Она создает новый цикл событий asyncio для этого потока
+    и запускает в нем бота.
+    """
     try:
+        logging.info("Поток для бота: создаю новый цикл событий asyncio...")
+        # 1. Создаем новый "рабочий стол" (event loop) для этого потока
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
         logging.info("Поток для бота: запускаю polling...")
+        # 2. Запускаем бота в этом, только что созданном, цикле
         application.run_polling()
+
     except Exception as e:
         logging.critical(f"!!! БОТ УПАЛ С ОШИБКОЙ: {e}", exc_info=True)
 
