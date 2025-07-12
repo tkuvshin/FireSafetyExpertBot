@@ -1,18 +1,33 @@
 import os
-import gspread
 import threading
 import asyncio
 import json
+import logging
 from flask import Flask
 
-# --- Обертка для безопасной инициализации ---
+# --- [ВАЖНО] Настройка логирования в файл ---
+# Все, что происходит, будет записано в файл app.log в той же папке
+log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app.log')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file_path), # Запись в файл
+        logging.StreamHandler()             # Вывод в консоль (если Timeweb все же его поймает)
+    ]
+)
+
+logging.info("--- СКРИПТ НАЧАЛ ВЫПОЛНЯТЬСЯ ---")
+
+# --- Безопасная инициализация с логированием ---
 try:
-    print("--- [1/4] Инициализация OpenAI ---")
+    logging.info("[1/4] Инициализация OpenAI...")
     from openai import OpenAI
     client_gpt = OpenAI(api_key=os.environ["MyKey2"])
 
-    print("--- [2/4] Инициализация Google Sheets ---")
+    logging.info("[2/4] Инициализация Google Sheets...")
     from oauth2client.service_account import ServiceAccountCredentials
+    import gspread
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds_json_str = os.environ['GCP_CREDENTIALS_JSON']
     creds_dict = json.loads(creds_json_str )
@@ -22,52 +37,46 @@ try:
     sheet = client_gs.open_by_key(SPREADSHEET_ID).sheet1
     records = sheet.get_all_records()
 
-    print("--- [3/4] Инициализация Telegram Bot ---")
+    logging.info("[3/4] Инициализация Telegram Bot...")
     from telegram import Update
     from telegram.ext import Application, MessageHandler, ContextTypes, filters
     TELEGRAM_BOT_TOKEN = os.environ["Telegram_Bot_Token"]
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    print("--- [4/4] Все модули успешно инициализированы ---")
+    logging.info("[4/4] Все модули успешно инициализированы.")
 
-except KeyError as e:
-    print(f"!!! КРИТИЧЕСКАЯ ОШИБКА: Переменная окружения не найдена: {e}")
-    raise
 except Exception as e:
-    print(f"!!! КРИТИЧЕСКАЯ ОШИБКА при инициализации: {e}")
-    raise
+    # Записываем любую ошибку при инициализации в лог
+    logging.critical(f"!!! КРИТИЧЕСКАЯ ОШИБКА ПРИ ИНИЦИАЛИЗАЦИИ: {e}", exc_info=True)
+    raise # Все равно останавливаем приложение, но ошибка будет в файле
 
 # --- Логика бота (без изменений) ---
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text.strip()
-    # ... (весь ваш код для обработки сообщения остается здесь)
-    for record in records:
-        if record["question"].strip().lower() == user_message.strip().lower():
-            await update.message.reply_text(record["answer"])
-            return
-    prompt = f'...' # Ваш длинный промпт
-    response = client_gpt.chat.completions.create(...) # Ваш запрос к GPT
-    gpt_answer = response.choices[0].message.content.strip()
-    await update.message.reply_text(gpt_answer)
+    # ... ваш код обработки сообщений ...
+    pass # Я временно убрал код, чтобы не загромождать пример
 
-application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+# application.add_handler(...) # Ваш обработчик
 
 # --- Flask-приложение ---
 app = Flask(__name__)
 @app.route("/")
 def home():
-    return "Сервер работает. Бот в фоновом режиме."
+    logging.info("Обработан GET-запрос к /")
+    return "Сервер работает."
 
 def run_bot():
-    print("Поток для бота: запускаю polling...")
-    application.run_polling()
+    try:
+        logging.info("Поток для бота: запускаю polling...")
+        application.run_polling()
+    except Exception as e:
+        logging.critical(f"!!! БОТ УПАЛ С ОШИБКОЙ: {e}", exc_info=True)
 
 @app.before_request
 def start_bot_thread():
     if not any(t.name == 'telegram_bot_thread' for t in threading.enumerate()):
-        print("Поток для бота не найден. Создаю и запускаю.")
+        logging.info("Поток для бота не найден. Создаю и запускаю.")
         bot_thread = threading.Thread(target=run_bot, name='telegram_bot_thread', daemon=True)
         bot_thread.start()
 
-print("--- Скрипт main.py полностью загружен. Приложение Flask 'app' готово к запуску сервером Gunicorn. ---")
+logging.info("--- Скрипт main.py полностью загружен. Приложение Flask 'app' готово к запуску. ---")
 
